@@ -20,14 +20,29 @@ const INITIAL_BOOSTS: Boost[] = [
   { id: 'robot', name: 'Mining Robot', description: 'Passive star collection', baseCost: 1000, multiplier: 3, level: 0, icon: '🤖' }
 ];
 
-const TASK_LINK = "https://otieu.com/4/10183879";
+// Updated Sponsor Link as per user request
+const TASK_LINK = "https://otieu.com/4/10185473";
 
-const INITIAL_TASKS: Task[] = [
-  { id: 'task_1', title: 'Join Star Community', reward: 50, icon: '🌟', link: TASK_LINK, completed: false },
-  { id: 'task_2', title: 'Follow Main Channel', reward: 75, icon: '📢', link: TASK_LINK, completed: false },
-  { id: 'task_3', title: 'Watch Promo Video', reward: 90, icon: '🎬', link: TASK_LINK, completed: false },
-  { id: 'task_4', title: 'Verify Partner Task', reward: 95, icon: '🤝', link: TASK_LINK, completed: false }
-];
+const generateBatchTasks = (count: number): Task[] => {
+  const icons = ['🌟', '📢', '🎬', '🤝', '🔥', '💎', '🚀', '⚡', '🤖', '🔋', '👆', '👑'];
+  const titles = [
+    'Support Sponsor', 'Verify Interest', 'Visit Channel', 'Confirm Task', 
+    'Daily Bonus', 'Boost Account', 'Check Offer', 'View Partner',
+    'Claim Stars', 'Join Network'
+  ];
+  const timestamp = Date.now();
+  return Array.from({ length: count }, (_, i) => ({
+    // Use timestamp and index to ensure unique IDs for "continuous" refresh
+    id: `task_${timestamp}_${i}`,
+    title: `${titles[Math.floor(Math.random() * titles.length)]} #${Math.floor(Math.random() * 999)}`,
+    reward: 100 + Math.floor(Math.random() * 100),
+    icon: icons[Math.floor(Math.random() * icons.length)],
+    link: TASK_LINK,
+    completed: false
+  }));
+};
+
+const INITIAL_TASKS = generateBatchTasks(10);
 
 const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -51,13 +66,10 @@ const App: React.FC = () => {
   const lastUpdateRef = useRef<number>(Date.now());
   const userId = getUserId();
 
-  // Handle Auth State Changes
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
-      if (user) {
-        loadDataManual(user.uid);
-      }
+      if (user) loadDataManual(user.uid);
     });
     return unsub;
   }, []);
@@ -66,10 +78,7 @@ const App: React.FC = () => {
     const targetUid = specificUid || userId;
     const localSaved = localStorage.getItem(LOCAL_STORAGE_KEY);
     let initialData = localSaved ? JSON.parse(localSaved) : null;
-
-    if (initialData) {
-      applyState(initialData);
-    }
+    if (initialData) applyState(initialData);
 
     try {
       const userDoc = await getDoc(doc(db, "users", targetUid));
@@ -81,7 +90,6 @@ const App: React.FC = () => {
       }
       setCloudEnabled(true);
     } catch (e: any) {
-      console.warn("Cloud load failed", e);
       setCloudEnabled(false);
     } finally {
       setIsLoading(false);
@@ -94,11 +102,7 @@ const App: React.FC = () => {
     setBoosts(data.boosts || INITIAL_BOOSTS);
     setIsBanned(!!data.isBanned);
     setIsAdmin(!!data.isAdmin);
-    const loadedTasks = data.tasks || INITIAL_TASKS;
-    setTasks(INITIAL_TASKS.map(it => {
-      const saved = loadedTasks.find((lt: any) => lt.id === it.id);
-      return saved ? { ...it, completed: saved.completed } : it;
-    }));
+    if (data.tasks) setTasks(data.tasks);
     
     const mLevel = data.boosts?.find((b: Boost) => b.id === 'multitap')?.level || 1;
     const eLevel = data.boosts?.find((b: Boost) => b.id === 'limit')?.level || 1;
@@ -111,7 +115,6 @@ const App: React.FC = () => {
     setAutoMiningRate(robotLevel * 2);
   };
 
-  // Load Initial Data & Start Real-time listener for Ban/Admin status
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "users", userId), (doc) => {
       if (doc.exists()) {
@@ -125,30 +128,18 @@ const App: React.FC = () => {
       } else {
         setIsLoading(false);
       }
-    }, (error) => {
-      loadDataManual();
     });
-
     return () => unsub();
   }, [userId, isLoading]);
 
-  // Sync to Cloud
   useEffect(() => {
     if (isLoading || isBanned) return;
-
     const saveData = async () => {
       const stateToSave = {
-        balance,
-        energy,
-        boosts,
-        tasks,
-        isBanned,
-        isAdmin, // Keep existing admin status in sync
+        balance, energy, boosts, tasks, isBanned, isAdmin,
         lastUpdate: Date.now()
       };
-
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(stateToSave));
-
       if (cloudEnabled) {
         setIsSyncing(true);
         try {
@@ -160,12 +151,10 @@ const App: React.FC = () => {
         }
       }
     };
-
     const timeout = setTimeout(saveData, 3000);
     return () => clearTimeout(timeout);
   }, [balance, energy, boosts, tasks, userId, isLoading, cloudEnabled, isBanned, isAdmin]);
 
-  // Core Game Loop
   useEffect(() => {
     if (isLoading || isBanned) return;
     const interval = setInterval(() => {
@@ -173,9 +162,7 @@ const App: React.FC = () => {
       const delta = (now - lastUpdateRef.current) / 1000;
       lastUpdateRef.current = now;
       setEnergy(prev => Math.min(maxEnergy, prev + rechargeRate * delta));
-      if (autoMiningRate > 0) {
-        setBalance(prev => prev + autoMiningRate * delta);
-      }
+      if (autoMiningRate > 0) setBalance(prev => prev + autoMiningRate * delta);
     }, 1000);
     return () => clearInterval(interval);
   }, [maxEnergy, rechargeRate, autoMiningRate, isLoading, isBanned]);
@@ -190,42 +177,63 @@ const App: React.FC = () => {
     return false;
   }, [energy, multitap, isBanned]);
 
-  const upgradeBoost = (id: string) => {
-    if (isBanned) return;
-    const boostIndex = boosts.findIndex(b => b.id === id);
-    if (boostIndex === -1) return;
-    const boost = boosts[boostIndex];
-    const cost = Math.floor(boost.baseCost * Math.pow(boost.multiplier, boost.level));
-
-    if (balance >= cost) {
-      setBalance(prev => prev - cost);
-      const newBoosts = [...boosts];
-      newBoosts[boostIndex].level += 1;
-      setBoosts(newBoosts);
-
-      if (id === 'multitap') setMultitap(newBoosts[boostIndex].level);
-      if (id === 'limit') setMaxEnergy(1000 + (newBoosts[boostIndex].level - 1) * 500);
-      if (id === 'recharge') setRechargeRate(1 + (newBoosts[boostIndex].level - 1) * 0.5);
-      if (id === 'robot') setAutoMiningRate(newBoosts[boostIndex].level * 2);
-    }
-  };
-
   const completeTask = (id: string) => {
     if (isBanned) return;
     const taskIndex = tasks.findIndex(t => t.id === id);
     if (taskIndex === -1 || tasks[taskIndex].completed || verifyingTaskId) return;
+    
+    // Trigger Monetag Ad pop
+    if (typeof (window as any).show_10440233 === 'function') {
+      (window as any).show_10440233('pop').then(() => {}).catch(() => {});
+    }
+
+    // Redirect to the provided sponsor URL
     window.open(tasks[taskIndex].link, '_blank');
+    
+    // Start verification
     setVerifyingTaskId(id);
+    
     setTimeout(() => {
-        const newTasks = [...tasks];
-        const currentTask = newTasks.find(t => t.id === id);
-        if (currentTask) {
-          currentTask.completed = true;
-          setTasks(newTasks);
-          setBalance(prev => prev + currentTask.reward);
-        }
+        setTasks(prev => {
+          const newTasks = [...prev];
+          const currentTask = newTasks.find(t => t.id === id);
+          if (currentTask && !currentTask.completed) {
+            currentTask.completed = true;
+            // Award Coins (Stars)
+            setBalance(prevBal => prevBal + currentTask.reward);
+          }
+          return newTasks;
+        });
         setVerifyingTaskId(null);
-    }, 3000);
+    }, 5000);
+  };
+
+  const refreshTasks = () => {
+    if (verifyingTaskId) return;
+    // Generate 10 brand new tasks continuously
+    setTasks(generateBatchTasks(10));
+  };
+
+  const upgradeBoost = (id: string) => {
+    if (isBanned) return;
+    const boostIndex = boosts.findIndex(b => b.id === id);
+    if (boostIndex === -1) return;
+    
+    const boost = boosts[boostIndex];
+    const cost = Math.floor(boost.baseCost * Math.pow(boost.multiplier, boost.level));
+    
+    if (balance >= cost) {
+      setBalance(prev => prev - cost);
+      const newBoosts = [...boosts];
+      const newLevel = boost.level + 1;
+      newBoosts[boostIndex] = { ...boost, level: newLevel };
+      setBoosts(newBoosts);
+      
+      if (id === 'multitap') setMultitap(newLevel);
+      if (id === 'limit') setMaxEnergy(1000 + (newLevel - 1) * 500);
+      if (id === 'recharge') setRechargeRate(1 + (newLevel - 1) * 0.5);
+      if (id === 'robot') setAutoMiningRate(newLevel * 2);
+    }
   };
 
   const handleLogout = async () => {
@@ -235,19 +243,16 @@ const App: React.FC = () => {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col h-screen items-center justify-center bg-black">
-        <div className="text-6xl mb-4 animate-bounce">⭐</div>
-        <h1 className="text-2xl font-black text-yellow-400">StarMining</h1>
-        <p className="text-gray-500 text-sm mt-4 animate-pulse uppercase tracking-widest">Waking up robots...</p>
-      </div>
-    );
-  }
+  if (isLoading) return (
+    <div className="flex flex-col h-screen items-center justify-center bg-black">
+      <div className="text-6xl mb-4 animate-bounce">⭐</div>
+      <h1 className="text-2xl font-black text-yellow-400">StarMining</h1>
+      <p className="text-gray-500 text-sm mt-4 animate-pulse uppercase tracking-widest">Waking up robots...</p>
+    </div>
+  );
 
   return (
     <div className="flex flex-col h-screen max-w-md mx-auto relative overflow-hidden bg-black select-none">
-      {/* Banned Overlay */}
       {isBanned && (
         <div className="absolute inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
           <div className="text-7xl mb-6">🚫</div>
@@ -261,7 +266,6 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Header */}
       <div className="pt-6 pb-2 px-6 flex justify-between items-center z-10">
         <div className="flex flex-col">
           <div className="flex items-center space-x-2">
@@ -271,32 +275,13 @@ const App: React.FC = () => {
             </span>
             {isSyncing && <span className="ml-1 text-blue-400 text-[10px] animate-pulse">☁️</span>}
           </div>
-          {currentUser && (
-            <span className="text-[8px] text-gray-500 font-bold truncate max-w-[120px]">
-              {currentUser.email}
-            </span>
-          )}
         </div>
-        
         <div className="flex items-center space-x-2">
            {!currentUser ? (
-             <button 
-              onClick={() => setShowAuth(true)}
-              className="text-[9px] font-black text-white bg-blue-600 px-3 py-1.5 rounded-lg uppercase tracking-widest shadow-lg shadow-blue-600/20"
-             >
-              Login
-             </button>
+             <button onClick={() => setShowAuth(true)} className="text-[9px] font-black text-white bg-blue-600 px-3 py-1.5 rounded-lg uppercase tracking-widest shadow-lg shadow-blue-600/20">Login</button>
            ) : (
-             <button 
-              onClick={handleLogout}
-              className="text-[9px] font-black text-gray-400 bg-gray-900 border border-gray-800 px-3 py-1.5 rounded-lg uppercase tracking-widest"
-             >
-              Exit
-             </button>
+             <button onClick={handleLogout} className="text-[9px] font-black text-gray-400 bg-gray-900 border border-gray-800 px-3 py-1.5 rounded-lg uppercase tracking-widest">Exit</button>
            )}
-          <div className="text-[9px] font-bold text-gray-500 uppercase tracking-widest bg-gray-900/50 px-2.5 py-1.5 rounded-lg">
-            {isBanned ? <span className="text-red-500">BAN</span> : `Lvl ${Math.floor(Math.log10(balance + 1)) + 1}`}
-          </div>
         </div>
       </div>
 
@@ -308,11 +293,10 @@ const App: React.FC = () => {
             switch (activeTab) {
               case 'mine': return <MiningView balance={balance} energy={energy} maxEnergy={maxEnergy} onTap={handleTap} />;
               case 'boost': return <BoostView balance={balance} boosts={boosts} onUpgrade={upgradeBoost} />;
-              case 'tasks': return <TaskView tasks={tasks} onComplete={completeTask} verifyingTaskId={verifyingTaskId} />;
+              case 'tasks': return <TaskView tasks={tasks} onComplete={completeTask} onRefresh={refreshTasks} verifyingTaskId={verifyingTaskId} />;
               case 'friends': return <FriendsView balance={balance} />;
               case 'wallet': return <WalletView balance={balance} setBalance={setBalance} tasks={tasks} />;
-              case 'admin': 
-                return isAdmin ? <AdminView /> : <MiningView balance={balance} energy={energy} maxEnergy={maxEnergy} onTap={handleTap} />;
+              case 'admin': return isAdmin ? <AdminView /> : <MiningView balance={balance} energy={energy} maxEnergy={maxEnergy} onTap={handleTap} />;
               default: return <MiningView balance={balance} energy={energy} maxEnergy={maxEnergy} onTap={handleTap} />;
             }
           })()
