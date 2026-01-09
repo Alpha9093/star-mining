@@ -1,5 +1,5 @@
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
 import { 
   getFirestore, 
   doc, 
@@ -12,42 +12,15 @@ import {
   where,
   addDoc,
   onSnapshot
-} from "https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 import { 
   getAuth, 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
   onAuthStateChanged,
   signOut,
-  sendEmailVerification,
   GoogleAuthProvider,
+  OAuthProvider,
   signInWithPopup
-} from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
-
-/**
- * 🛠️ HOW TO FIX "MISSING OR INSUFFICIENT PERMISSIONS" 🛠️
- * 
- * You must update your rules in the Firebase Console:
- * 1. Go to console.firebase.google.com
- * 2. Click "Firestore Database" -> "Rules" tab.
- * 3. Copy and Paste the rules below EXACTLY:
- * 
- * rules_version = '2';
- * service cloud.firestore {
- *   match /databases/{database}/documents {
- *     match /users/{userId} {
- *       allow read, write: if true;
- *     }
- *     match /users/{document=**} {
- *       allow list: if true;
- *       allow read, write: if true;
- *     }
- *     match /withdrawals/{document=**} {
- *       allow read, write: if true;
- *     }
- *   }
- * }
- */
+} from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBsoZHSPGItF__tFb4Q0FSZ91K9yGlP5PA",
@@ -62,6 +35,7 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
+export const appleProvider = new OAuthProvider('apple.com');
 
 // Helper to get or create a persistent User ID
 export const getUserId = () => {
@@ -78,6 +52,5 @@ export const getUserId = () => {
 
 export { 
   doc, setDoc, getDoc, collection, getDocs, updateDoc, query, where, addDoc, onSnapshot,
-  createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, 
-  sendEmailVerification, signInWithPopup
+  onAuthStateChanged, signOut, signInWithPopup
 };
