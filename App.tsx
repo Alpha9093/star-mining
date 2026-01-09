@@ -22,12 +22,25 @@ const INITIAL_BOOSTS: Boost[] = [
 
 const TASK_LINK = "https://otieu.com/4/10183879";
 
-const INITIAL_TASKS: Task[] = [
-  { id: 'task_1', title: 'Join Star Community', reward: 50, icon: '🌟', link: TASK_LINK, completed: false },
-  { id: 'task_2', title: 'Follow Main Channel', reward: 75, icon: '📢', link: TASK_LINK, completed: false },
-  { id: 'task_3', title: 'Watch Promo Video', reward: 90, icon: '🎬', link: TASK_LINK, completed: false },
-  { id: 'task_4', title: 'Verify Partner Task', reward: 95, icon: '🤝', link: TASK_LINK, completed: false }
-];
+const generateBatchTasks = (count: number): Task[] => {
+  const icons = ['🌟', '📢', '🎬', '🤝', '🔥', '💎', '🚀', '⚡', '🤖', '🔋', '👆', '👑'];
+  const titles = [
+    'Join Community', 'Follow Channel', 'Watch Video', 'Verify Task', 
+    'Check Sponsor', 'Boost Mining', 'Support Project', 'Visit Partner',
+    'Claim Daily', 'Join Airdrop'
+  ];
+  const timestamp = Date.now();
+  return Array.from({ length: count }, (_, i) => ({
+    id: `task_${timestamp}_${i}`,
+    title: `${titles[Math.floor(Math.random() * titles.length)]} #${Math.floor(Math.random() * 999)}`,
+    reward: 50 + Math.floor(Math.random() * 50),
+    icon: icons[Math.floor(Math.random() * icons.length)],
+    link: TASK_LINK,
+    completed: false
+  }));
+};
+
+const INITIAL_TASKS = generateBatchTasks(10);
 
 const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -94,11 +107,9 @@ const App: React.FC = () => {
     setBoosts(data.boosts || INITIAL_BOOSTS);
     setIsBanned(!!data.isBanned);
     setIsAdmin(!!data.isAdmin);
-    const loadedTasks = data.tasks || INITIAL_TASKS;
-    setTasks(INITIAL_TASKS.map(it => {
-      const saved = loadedTasks.find((lt: any) => lt.id === it.id);
-      return saved ? { ...it, completed: saved.completed } : it;
-    }));
+    if (data.tasks) {
+      setTasks(data.tasks);
+    }
     
     const mLevel = data.boosts?.find((b: Boost) => b.id === 'multitap')?.level || 1;
     const eLevel = data.boosts?.find((b: Boost) => b.id === 'limit')?.level || 1;
@@ -111,7 +122,6 @@ const App: React.FC = () => {
     setAutoMiningRate(robotLevel * 2);
   };
 
-  // Load Initial Data & Start Real-time listener for Ban/Admin status
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "users", userId), (doc) => {
       if (doc.exists()) {
@@ -132,7 +142,6 @@ const App: React.FC = () => {
     return () => unsub();
   }, [userId, isLoading]);
 
-  // Sync to Cloud
   useEffect(() => {
     if (isLoading || isBanned) return;
 
@@ -143,7 +152,7 @@ const App: React.FC = () => {
         boosts,
         tasks,
         isBanned,
-        isAdmin, // Keep existing admin status in sync
+        isAdmin,
         lastUpdate: Date.now()
       };
 
@@ -165,7 +174,6 @@ const App: React.FC = () => {
     return () => clearTimeout(timeout);
   }, [balance, energy, boosts, tasks, userId, isLoading, cloudEnabled, isBanned, isAdmin]);
 
-  // Core Game Loop
   useEffect(() => {
     if (isLoading || isBanned) return;
     const interval = setInterval(() => {
@@ -214,18 +222,39 @@ const App: React.FC = () => {
     if (isBanned) return;
     const taskIndex = tasks.findIndex(t => t.id === id);
     if (taskIndex === -1 || tasks[taskIndex].completed || verifyingTaskId) return;
+    
+    // 1. Trigger Monetag Rewarded Ad
+    if (typeof (window as any).show_10440233 === 'function') {
+      (window as any).show_10440233('pop').then(() => {
+          console.log("Monetag Ad Finished Successfully");
+      }).catch((e: any) => {
+          console.warn("Monetag Ad Failed", e);
+      });
+    }
+
+    // 2. Open Sponsor Link
     window.open(tasks[taskIndex].link, '_blank');
+    
+    // 3. Set Verifying State (5 Seconds)
     setVerifyingTaskId(id);
+    
     setTimeout(() => {
-        const newTasks = [...tasks];
-        const currentTask = newTasks.find(t => t.id === id);
-        if (currentTask) {
-          currentTask.completed = true;
-          setTasks(newTasks);
-          setBalance(prev => prev + currentTask.reward);
-        }
+        setTasks(prev => {
+          const newTasks = [...prev];
+          const currentTask = newTasks.find(t => t.id === id);
+          if (currentTask && !currentTask.completed) {
+            currentTask.completed = true;
+            setBalance(prevBal => prevBal + currentTask.reward);
+          }
+          return newTasks;
+        });
         setVerifyingTaskId(null);
-    }, 3000);
+    }, 5000);
+  };
+
+  const refreshTasks = () => {
+    if (verifyingTaskId) return;
+    setTasks(generateBatchTasks(10));
   };
 
   const handleLogout = async () => {
@@ -247,7 +276,6 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen max-w-md mx-auto relative overflow-hidden bg-black select-none">
-      {/* Banned Overlay */}
       {isBanned && (
         <div className="absolute inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
           <div className="text-7xl mb-6">🚫</div>
@@ -261,7 +289,6 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Header */}
       <div className="pt-6 pb-2 px-6 flex justify-between items-center z-10">
         <div className="flex flex-col">
           <div className="flex items-center space-x-2">
@@ -308,7 +335,7 @@ const App: React.FC = () => {
             switch (activeTab) {
               case 'mine': return <MiningView balance={balance} energy={energy} maxEnergy={maxEnergy} onTap={handleTap} />;
               case 'boost': return <BoostView balance={balance} boosts={boosts} onUpgrade={upgradeBoost} />;
-              case 'tasks': return <TaskView tasks={tasks} onComplete={completeTask} verifyingTaskId={verifyingTaskId} />;
+              case 'tasks': return <TaskView tasks={tasks} onComplete={completeTask} onRefresh={refreshTasks} verifyingTaskId={verifyingTaskId} />;
               case 'friends': return <FriendsView balance={balance} />;
               case 'wallet': return <WalletView balance={balance} setBalance={setBalance} tasks={tasks} />;
               case 'admin': 
