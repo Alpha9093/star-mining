@@ -1,0 +1,7 @@
+{
+  "name": "StarMining Mini App",
+  "description": "A high-performance tap-to-mine crypto game simulation featuring an energy system, boost upgrades, tasks, and social features optimized for mobile devices.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
