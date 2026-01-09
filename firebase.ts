@@ -19,7 +19,9 @@ import {
   signInWithEmailAndPassword, 
   onAuthStateChanged,
   signOut,
-  sendEmailVerification
+  sendEmailVerification,
+  GoogleAuthProvider,
+  signInWithPopup
 } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
 
 /**
@@ -33,8 +35,6 @@ import {
  * rules_version = '2';
  * service cloud.firestore {
  *   match /databases/{database}/documents {
- *     // Allow global read/write for the demo.
- *     // In production, you would restrict these by Auth UID.
  *     match /users/{userId} {
  *       allow read, write: if true;
  *     }
@@ -61,6 +61,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
+export const googleProvider = new GoogleAuthProvider();
 
 // Helper to get or create a persistent User ID
 export const getUserId = () => {
@@ -77,5 +78,6 @@ export const getUserId = () => {
 
 export { 
   doc, setDoc, getDoc, collection, getDocs, updateDoc, query, where, addDoc, onSnapshot,
-  createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendEmailVerification
+  createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, 
+  sendEmailVerification, signInWithPopup
 };
