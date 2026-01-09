@@ -8,8 +8,6 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Monetag Script -->
-    <script src="https://alwingulla.com/act/files/tag.min.js?z=10440233" data-cfasync="false" async></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -39,14 +37,6 @@
             color: #fbbf24;
             z-index: 50;
         }
-        @keyframes circle-draw {
-            from { stroke-dashoffset: 283; }
-            to { stroke-dashoffset: 0; }
-        }
-        .countdown-ring {
-            stroke-dasharray: 283;
-            animation: circle-draw 5s linear forwards;
-        }
     </style>
 <script type="importmap">
 {
@@ -57,8 +47,10 @@
   }
 }
 </script>
+<link rel="stylesheet" href="/index.css">
 </head>
 <body>
     <div id="root"></div>
+<script type="module" src="/index.tsx"></script>
 </body>
 </html>
